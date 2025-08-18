@@ -1,0 +1,51 @@
+<resources>
+    <string name="app_name">影片編輯器</string>
+    
+    <!-- 主要功能 -->
+    <string name="trim">裁剪</string>
+    <string name="speed">變速</string>
+    <string name="audio">聲音</string>
+    <string name="filter">濾鏡</string>
+    
+    <!-- 按鈕 -->
+    <string name="cancel">取消</string>
+    <string name="done">完成</string>
+    <string name="play">播放</string>
+    <string name="pause">暫停</string>
+    <string name="share">分享</string>
+    <string name="save">儲存</string>
+    
+    <!-- 音訊功能 -->
+    <string name="remove_background">去除背景聲音</string>
+    <string name="add_background_music">增加背景音樂</string>
+    <string name="original_audio">原音</string>
+    
+    <!-- 變速功能 -->
+    <string name="speed_slow">慢速</string>
+    <string name="speed_normal">正常</string>
+    <string name="speed_fast">快速</string>
+    
+    <!-- 濾鏡 -->
+    <string name="filter_original">原圖</string>
+    <string name="filter_vintage">復古</string>
+    <string name="filter_bw">黑白</string>
+    <string name="filter_warm">暖色</string>
+    <string name="filter_cool">冷色</string>
+    
+    <!-- 權限相關 -->
+    <string name="permission_required">需要權限</string>
+    <string name="storage_permission_required">需要儲存權限來存取影片檔案</string>
+    <string name="grant_permission">授予權限</string>
+    
+    <!-- 錯誤訊息 -->
+    <string name="error_loading_video">載入影片失敗</string>
+    <string name="error_processing_video">處理影片失敗</string>
+    <string name="error_saving_video">儲存影片失敗</string>
+    <string name="success_saved">儲存成功</string>
+    
+    <!-- 檔案管理 -->
+    <string name="files">檔案</string>
+    <string name="no_files">沒有檔案</string>
+    <string name="delete_file">刪除檔案</string>
+    <string name="file_deleted">檔案已刪除</string>
+</resources>

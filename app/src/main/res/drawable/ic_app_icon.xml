@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- 背景圓形 -->
+    <path
+        android:fillColor="@color/orange_500"
+        android:pathData="M54,54m-48,0a48,48 0,1 1,96 0a48,48 0,1 1,-96 0"/>
+    
+    <!-- 影片圖示 -->
+    <path
+        android:fillColor="@color/white"
+        android:pathData="M38,32v44l36,-22z"/>
+</vector>

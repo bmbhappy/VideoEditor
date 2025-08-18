@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="8dp"
+    android:background="@color/surface_dark">
+
+    <!-- 時間戳 -->
+    <TextView
+        android:id="@+id/tvTimestamp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="12:34:56.789"
+        android:textColor="@color/gray_500"
+        android:textSize="12sp"
+        android:layout_marginEnd="8dp" />
+
+    <!-- 日誌級別 -->
+    <TextView
+        android:id="@+id/tvLevel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="D"
+        android:textColor="@color/white"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:layout_marginEnd="4dp" />
+
+    <!-- 標籤 -->
+    <TextView
+        android:id="@+id/tvTag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="VideoProcessor"
+        android:textColor="@color/white"
+        android:textSize="12sp"
+        android:layout_marginEnd="8dp" />
+
+    <!-- 訊息 -->
+    <TextView
+        android:id="@+id/tvMessage"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="這是一條日誌訊息"
+        android:textColor="@color/white"
+        android:textSize="12sp" />
+
+</LinearLayout>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 外部儲存空間 -->
+    <external-path name="external_files" path="." />
+    
+    <!-- 應用程式外部檔案目錄 -->
+    <external-files-path name="external_files" path="." />
+    
+    <!-- 應用程式內部檔案目錄 -->
+    <files-path name="files" path="." />
+    
+    <!-- 應用程式快取目錄 -->
+    <cache-path name="cache" path="." />
+    
+    <!-- 應用程式專用目錄 -->
+    <external-files-path name="videos" path="." />
+    <files-path name="videos" path="." />
+</paths>

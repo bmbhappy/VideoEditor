@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_trim"
+        android:icon="@drawable/ic_trim"
+        android:title="@string/trim" />
+    
+    <item
+        android:id="@+id/nav_speed"
+        android:icon="@drawable/ic_speed"
+        android:title="@string/speed" />
+    
+    <item
+        android:id="@+id/nav_audio"
+        android:icon="@drawable/ic_audio"
+        android:title="@string/audio" />
+    
+    <item
+        android:id="@+id/nav_filter"
+        android:icon="@drawable/ic_filter"
+        android:title="@string/filter" />
+</menu>
