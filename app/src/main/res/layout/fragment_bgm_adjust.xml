@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_color"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <!-- 標題 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="BGM 長度調整"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_color"
+            android:layout_marginBottom="24dp" />
+
+        <!-- 檔案選擇區域 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="1. 選擇檔案"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_color"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- 影片選擇 -->
+                <Button
+                    android:id="@+id/btnSelectVideo"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="選擇影片"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="8dp"
+                    android:backgroundTint="@color/primary_color" />
+
+                <TextView
+                    android:id="@+id/tvVideoPath"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="尚未選擇影片"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tvVideoLength"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="影片長度: --:--"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- BGM 選擇 -->
+                <Button
+                    android:id="@+id/btnSelectBgm"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="選擇背景音樂"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="8dp"
+                    android:backgroundTint="@color/secondary_color" />
+
+                <TextView
+                    android:id="@+id/tvBgmPath"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="尚未選擇BGM"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tvBgmLength"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="BGM長度: --:--"
+                    android:textColor="@color/text_secondary" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- 長度調整模式 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="2. 選擇長度調整模式"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_color"
+                    android:layout_marginBottom="12dp" />
+
+                <RadioGroup
+                    android:id="@+id/rgLengthMode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/rbLoop"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="🔁 循環播放 - BGM重複播放直到影片結束"
+                        android:textSize="16sp"
+                        android:textColor="@color/text_color"
+                        android:padding="8dp" />
+
+                    <RadioButton
+                        android:id="@+id/rbTrim"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="✂️ 裁剪模式 - 裁剪BGM到影片長度"
+                        android:textSize="16sp"
+                        android:textColor="@color/text_color"
+                        android:padding="8dp" />
+
+                    <RadioButton
+                        android:id="@+id/rbStretch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="📈 拉伸模式 - 調整BGM播放速度"
+                        android:textSize="16sp"
+                        android:textColor="@color/text_color"
+                        android:padding="8dp" />
+
+                    <RadioButton
+                        android:id="@+id/rbFadeOut"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="🌅 淡出模式 - BGM在影片結束時淡出"
+                        android:textSize="16sp"
+                        android:textColor="@color/text_color"
+                        android:padding="8dp" />
+
+                </RadioGroup>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- 時間控制 (僅在裁剪和淡出模式顯示) -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/layoutTimeControls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="時間控制"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_color"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- 開始時間 -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="開始時間"
+                    android:textColor="@color/text_color"
+                    android:layout_marginBottom="4dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="16dp">
+
+                    <com.google.android.material.slider.Slider
+                        android:id="@+id/sliderStartTime"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:valueFrom="0"
+                        android:valueTo="100"
+                        android:value="0"
+                        android:stepSize="1"
+                        app:thumbColor="@color/accent_color"
+                        app:trackColorActive="@color/primary_color"
+                        app:trackColorInactive="@color/text_secondary" />
+
+                    <TextView
+                        android:id="@+id/tvStartTimeValue"
+                        android:layout_width="60dp"
+                        android:layout_height="wrap_content"
+                        android:text="0:00"
+                        android:textColor="@color/text_color"
+                        android:gravity="end"
+                        android:layout_marginStart="8dp" />
+
+                </LinearLayout>
+
+                <!-- 結束時間 -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="結束時間"
+                    android:textColor="@color/text_color"
+                    android:layout_marginBottom="4dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <com.google.android.material.slider.Slider
+                        android:id="@+id/sliderEndTime"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:valueFrom="0"
+                        android:valueTo="100"
+                        android:value="100"
+                        android:stepSize="1"
+                        app:thumbColor="@color/accent_color"
+                        app:trackColorActive="@color/primary_color"
+                        app:trackColorInactive="@color/text_secondary" />
+
+                    <TextView
+                        android:id="@+id/tvEndTimeValue"
+                        android:layout_width="60dp"
+                        android:layout_height="wrap_content"
+                        android:text="0:00"
+                        android:textColor="@color/text_color"
+                        android:gravity="end"
+                        android:layout_marginStart="8dp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- 音量控制 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="3. 音量調整"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_color"
+                    android:layout_marginBottom="12dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔊 BGM音量"
+                        android:textColor="@color/text_color"
+                        android:layout_marginEnd="12dp" />
+
+                    <com.google.android.material.slider.Slider
+                        android:id="@+id/sliderVolume"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:valueFrom="0"
+                        android:valueTo="1"
+                        android:value="0.4"
+                        android:stepSize="0.01"
+                        app:thumbColor="@color/accent_color"
+                        app:trackColorActive="@color/secondary_color"
+                        app:trackColorInactive="@color/text_secondary" />
+
+                    <TextView
+                        android:id="@+id/tvVolumeValue"
+                        android:layout_width="60dp"
+                        android:layout_height="wrap_content"
+                        android:text="40%"
+                        android:textColor="@color/text_color"
+                        android:gravity="end"
+                        android:layout_marginStart="8dp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- 預覽控制區域 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="4. 預覽與套用"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_color"
+                    android:layout_marginBottom="12dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="預覽將播放前10秒的調整效果"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- 操作按鈕 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
+                    <Button
+                        android:id="@+id/btnPreview"
+                        android:layout_width="0dp"
+                        android:layout_height="56dp"
+                        android:layout_weight="1"
+                        android:text="預覽"
+                        android:textSize="16sp"
+                        android:layout_marginEnd="8dp"
+                        android:backgroundTint="@color/accent_color"
+                        android:enabled="false" />
+
+                    <Button
+                        android:id="@+id/btnApply"
+                        android:layout_width="0dp"
+                        android:layout_height="56dp"
+                        android:layout_weight="1"
+                        android:text="套用 BGM"
+                        android:textSize="16sp"
+                        android:layout_marginStart="8dp"
+                        android:backgroundTint="@color/primary_color"
+                        android:enabled="false" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+    </LinearLayout>
+
+</ScrollView>

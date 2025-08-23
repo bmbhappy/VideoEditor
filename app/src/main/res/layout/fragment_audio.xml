@@ -5,8 +5,6 @@
     android:layout_height="match_parent"
     android:background="@color/background_dark">
 
-
-
     <!-- 影片播放器 -->
     <com.google.android.exoplayer2.ui.PlayerView
         android:id="@+id/playerView"
@@ -21,129 +19,363 @@
         app:use_controller="true"
         app:show_buffering="when_playing" />
 
-
-
     <!-- 音訊控制區域 -->
-    <LinearLayout
+    <ScrollView
         android:id="@+id/audioControls"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
         android:background="@color/surface_dark"
-        android:orientation="vertical"
-        android:padding="8dp"
         android:layout_marginBottom="4dp"
+        android:fillViewport="true"
+        android:scrollbars="vertical"
+        android:fadeScrollbars="false"
         app:layout_constraintBottom_toTopOf="@id/bottomControls"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/playerView">
 
-
-
-        <!-- 音訊選項 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:layout_marginBottom="8dp">
+            android:padding="8dp">
 
-            <!-- 去除背景聲音 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="8dp"
-                android:background="@drawable/rounded_background"
-                android:layout_marginBottom="4dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/remove_background"
-                    android:textColor="@color/white"
-                    android:textSize="16sp" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switchRemoveBackground"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checked="false" />
-
-            </LinearLayout>
-
-            <!-- 添加背景音樂 -->
+            <!-- 音訊選項 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="8dp"
-                android:background="@drawable/rounded_background">
+                android:layout_marginBottom="8dp">
 
+                <!-- 去除背景聲音 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
+                    android:padding="8dp"
+                    android:background="@drawable/rounded_background"
                     android:layout_marginBottom="4dp">
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="@string/add_background_music"
+                        android:text="@string/remove_background"
                         android:textColor="@color/white"
                         android:textSize="16sp" />
 
                     <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switchAddBackgroundMusic"
+                        android:id="@+id/switchRemoveBackground"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:checked="false" />
 
                 </LinearLayout>
 
-                <!-- 背景音樂選擇 -->
+                <!-- 添加背景音樂 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:padding="8dp"
+                    android:background="@drawable/rounded_background">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="4dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/add_background_music"
+                            android:textColor="@color/white"
+                            android:textSize="16sp" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchAddBackgroundMusic"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="false" />
+
+                    </LinearLayout>
+
+                    <!-- 背景音樂選擇 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvSelectedMusic"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="未選擇背景音樂"
+                            android:textColor="@color/gray_300"
+                            android:textSize="14sp"
+                            android:layout_marginBottom="4dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginTop="4dp">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnSelectMusic"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="選擇背景音樂"
+                                android:textColor="@color/white"
+                                app:cornerRadius="8dp"
+                                app:strokeColor="@color/gray_500" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnPreviewMusic"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="8dp"
+                                android:text="預覽音樂"
+                                android:textColor="@color/white"
+                                android:enabled="false"
+                                app:cornerRadius="8dp"
+                                app:strokeColor="@color/gray_500" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- BGM 調整控制區域 -->
+            <LinearLayout
+                android:id="@+id/layoutBgmControls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:layout_marginTop="16dp">
+
+                <!-- 長度調整模式 -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="長度調整模式"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <RadioGroup
+                    android:id="@+id/rgLengthMode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="16dp">
+
+                    <RadioButton
+                        android:id="@+id/rbLoop"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="🔁 循環播放 - BGM重複播放直到影片結束"
+                        android:textSize="14sp"
+                        android:textColor="@color/white"
+                        android:padding="8dp"
+                        android:checked="true" />
+
+                    <RadioButton
+                        android:id="@+id/rbTrim"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="✂️ 裁剪模式 - 裁剪BGM到影片長度"
+                        android:textSize="14sp"
+                        android:textColor="@color/white"
+                        android:padding="8dp" />
+
+                    <RadioButton
+                        android:id="@+id/rbStretch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="📈 拉伸模式 - 調整BGM播放速度"
+                        android:textSize="14sp"
+                        android:textColor="@color/white"
+                        android:padding="8dp" />
+
+                    <RadioButton
+                        android:id="@+id/rbFadeOut"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="🌅 淡出模式 - BGM在影片結束時淡出"
+                        android:textSize="14sp"
+                        android:textColor="@color/white"
+                        android:padding="8dp" />
+
+                </RadioGroup>
+
+                <!-- 時間控制 (僅在裁剪和淡出模式顯示) -->
+                <LinearLayout
+                    android:id="@+id/layoutTimeControls"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    android:layout_marginBottom="16dp">
 
                     <TextView
-                        android:id="@+id/tvSelectedMusic"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="未選擇背景音樂"
-                        android:textColor="@color/gray_300"
-                        android:textSize="14sp"
+                        android:text="時間控制"
+                        android:textColor="@color/white"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- 開始時間 -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="開始時間"
+                        android:textColor="@color/white"
                         android:layout_marginBottom="4dp" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginTop="4dp">
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnSelectMusic"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/sliderStartTime"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="選擇背景音樂"
-                            android:textColor="@color/white"
-                            app:cornerRadius="8dp"
-                            app:strokeColor="@color/gray_500" />
+                            android:valueFrom="0"
+                            android:valueTo="100"
+                            android:value="0"
+                            android:stepSize="1"
+                            android:minHeight="48dp"
+                            app:thumbColor="@color/accent_purple"
+                            app:trackColorActive="@color/teal_500"
+                            app:trackColorInactive="@color/white" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnPreviewMusic"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                        <TextView
+                            android:id="@+id/tvStartTimeValue"
+                            android:layout_width="60dp"
+                            android:layout_height="wrap_content"
+                            android:text="0:00"
+                            android:textColor="@color/white"
+                            android:gravity="end"
+                            android:layout_marginStart="12dp" />
+
+                    </LinearLayout>
+
+                    <!-- 結束時間 -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="結束時間"
+                        android:textColor="@color/white"
+                        android:layout_marginBottom="4dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp">
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/sliderEndTime"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:layout_marginStart="8dp"
-                            android:text="預覽音樂"
+                            android:valueFrom="0"
+                            android:valueTo="100"
+                            android:value="100"
+                            android:stepSize="1"
+                            android:minHeight="48dp"
+                            app:thumbColor="@color/accent_purple"
+                            app:trackColorActive="@color/teal_500"
+                            app:trackColorInactive="@color/white" />
+
+                        <TextView
+                            android:id="@+id/tvEndTimeValue"
+                            android:layout_width="60dp"
+                            android:layout_height="wrap_content"
+                            android:text="0:00"
                             android:textColor="@color/white"
-                            android:enabled="false"
-                            app:cornerRadius="8dp"
-                            app:strokeColor="@color/gray_500" />
+                            android:gravity="end"
+                            android:layout_marginStart="12dp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- 音量控制 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="音量調整"
+                        android:textColor="@color/white"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🔊 BGM音量"
+                            android:textColor="@color/white"
+                            android:layout_marginEnd="12dp" />
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/sliderVolume"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:valueFrom="0"
+                            android:valueTo="1"
+                            android:value="0.4"
+                            android:stepSize="0.01"
+                            android:minHeight="48dp"
+                            app:thumbColor="@color/accent_purple"
+                            app:trackColorActive="@color/orange_500"
+                            app:trackColorInactive="@color/white" />
+
+                        <TextView
+                            android:id="@+id/tvVolumeValue"
+                            android:layout_width="60dp"
+                            android:layout_height="wrap_content"
+                            android:text="40%"
+                            android:textColor="@color/white"
+                            android:gravity="end"
+                            android:layout_marginStart="12dp" />
 
                     </LinearLayout>
 
@@ -153,7 +385,7 @@
 
         </LinearLayout>
 
-    </LinearLayout>
+    </ScrollView>
 
     <!-- 底部控制區域 -->
     <LinearLayout
@@ -173,7 +405,7 @@
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_weight="1"
-            android:text="重置"
+            android:text="BGM預覽"
             android:textColor="@color/gray_300"
             android:textSize="14sp"
             app:cornerRadius="8dp" />

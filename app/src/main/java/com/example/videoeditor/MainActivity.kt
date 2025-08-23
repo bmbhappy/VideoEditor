@@ -21,6 +21,8 @@ import com.example.videoeditor.databinding.ActivityMainBinding
 import com.example.videoeditor.fragments.*
 import com.example.videoeditor.utils.PermissionHelper
 import com.example.videoeditor.utils.VideoUtils
+import com.example.test.TestRunner
+import com.example.test.TestExample
 
 class MainActivity : AppCompatActivity() {
     
@@ -106,6 +108,12 @@ class MainActivity : AppCompatActivity() {
         binding.btnLogDisplay.setOnClickListener {
             val intent = Intent(this, LogDisplayActivity::class.java)
             startActivity(intent)
+        }
+        
+        // 添加測試按鈕（隱藏，長按啟用）
+        binding.btnFileManager.setOnLongClickListener {
+            showAudioTestMenu()
+            true
         }
     }
     
@@ -262,6 +270,132 @@ class MainActivity : AppCompatActivity() {
                 else -> TrimFragment()
             }
         }
+    }
+    
+    // ==================== 音訊測試功能 ====================
+    
+    private fun showAudioTestMenu() {
+        val options = arrayOf(
+            "🚀 執行完整測試套件",
+            "🎵 PCM 混音測試", 
+            "🔊 音訊解碼測試",
+            "📊 音訊品質檢查",
+            "🏥 系統健康檢查",
+            "⚡ 效能基準測試",
+            "🎼 BGM 功能驗證測試"
+        )
+        
+        android.app.AlertDialog.Builder(this)
+            .setTitle("🧪 音訊測試系統")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> runFullAudioTest()
+                    1 -> runPcmMixingTest()
+                    2 -> runAudioDecodingTest()
+                    3 -> runAudioQualityTest()
+                    4 -> runHealthCheck()
+                    5 -> runPerformanceBenchmark()
+                    6 -> runBgmFunctionalityTest()
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+    
+    private fun runFullAudioTest() {
+        Toast.makeText(this, "🚀 開始執行完整音訊測試套件...", Toast.LENGTH_SHORT).show()
+        TestExample.runFullTestExample(this)
+    }
+    
+    private fun runPcmMixingTest() {
+        Toast.makeText(this, "🎵 開始 PCM 混音測試...", Toast.LENGTH_SHORT).show()
+        val testRunner = TestRunner(this)
+        testRunner.runSingleTest("PCM 混音測試", createTestCallback())
+    }
+    
+    private fun runAudioDecodingTest() {
+        Toast.makeText(this, "🔊 開始音訊解碼測試...", Toast.LENGTH_SHORT).show()
+        val testRunner = TestRunner(this)
+        testRunner.runSingleTest("音訊解碼測試", createTestCallback())
+    }
+    
+    private fun runAudioQualityTest() {
+        Toast.makeText(this, "📊 開始音訊品質檢查...", Toast.LENGTH_SHORT).show()
+        val testRunner = TestRunner(this)
+        testRunner.runSingleTest("音訊品質分析測試", createTestCallback())
+    }
+    
+    private fun runHealthCheck() {
+        Toast.makeText(this, "🏥 開始系統健康檢查...", Toast.LENGTH_SHORT).show()
+        TestExample.audioHealthCheck(this)
+    }
+    
+    private fun runPerformanceBenchmark() {
+        Toast.makeText(this, "⚡ 開始效能基準測試...", Toast.LENGTH_SHORT).show()
+        TestExample.performanceBenchmark(this)
+    }
+    
+    private fun runBgmFunctionalityTest() {
+        Toast.makeText(this, "🎼 開始 BGM 功能驗證測試...", Toast.LENGTH_SHORT).show()
+        TestExample.bgmFunctionalityTest(this, createTestCallback())
+    }
+    
+    private fun createTestCallback(): TestRunner.TestCallback {
+        return object : TestRunner.TestCallback {
+            override fun onTestStarted(testName: String) {
+                Log.i(TAG, "🚀 測試開始: $testName")
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "測試開始: $testName", Toast.LENGTH_SHORT).show()
+                }
+            }
+            
+            override fun onTestCompleted(testName: String, success: Boolean, message: String) {
+                val status = if (success) "✅ 成功" else "❌ 失敗"
+                Log.i(TAG, "$status $testName: $message")
+                runOnUiThread {
+                    Toast.makeText(
+                        this@MainActivity, 
+                        "$status $testName\n$message", 
+                        if (success) Toast.LENGTH_SHORT else Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+            
+            override fun onTestSuiteCompleted(testSuite: com.example.test.AudioPipelineTester.TestSuite) {
+                val successRate = String.format("%.1f", testSuite.successRate * 100)
+                val summary = "📊 測試完成\n成功率: $successRate%\n成功: ${testSuite.successCount}/${testSuite.tests.size}\n耗時: ${testSuite.totalDuration}ms"
+                Log.i(TAG, summary)
+                
+                runOnUiThread {
+                    android.app.AlertDialog.Builder(this@MainActivity)
+                        .setTitle("🎉 測試套件完成")
+                        .setMessage(summary)
+                        .setPositiveButton("查看詳細報告") { _, _ ->
+                            showDetailedReport(testSuite)
+                        }
+                        .setNeutralButton("確定", null)
+                        .show()
+                }
+            }
+            
+            override fun onError(error: String) {
+                Log.e(TAG, "💥 測試錯誤: $error")
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "測試錯誤: $error", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+    
+    private fun showDetailedReport(testSuite: com.example.test.AudioPipelineTester.TestSuite) {
+        val tester = com.example.test.AudioPipelineTester(this)
+        val report = tester.generateTestReport(testSuite)
+        
+        android.app.AlertDialog.Builder(this)
+            .setTitle("📋 詳細測試報告")
+            .setMessage(report)
+            .setPositiveButton("確定", null)
+            .show()
     }
     
     companion object {

@@ -5,11 +5,15 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
+import android.webkit.MimeTypeMap
+import android.media.MediaExtractor
+import android.media.MediaFormat
 
 object VideoUtils {
     
@@ -55,6 +59,66 @@ object VideoUtils {
             outputFile
         } catch (e: IOException) {
             Log.e(TAG, "Error copying file: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * 將任意 content:// 或 file:// 的 Uri 解析為本機可用的檔案路徑。
+     * 策略：
+     * - 若為 file:// 直接回傳路徑
+     * - 若為 content://，就以 ContentResolver 讀取並複製到 App 私有目錄（外部或內部），回傳複製後路徑
+     */
+    fun resolveToLocalFilePath(
+        context: Context,
+        uri: Uri,
+        defaultNamePrefix: String = "import",
+        fallbackExt: String = "dat"
+    ): String? {
+        return try {
+            when (uri.scheme) {
+                ContentResolver.SCHEME_FILE -> uri.path
+                ContentResolver.SCHEME_CONTENT -> {
+                    val resolver = context.contentResolver
+                    var displayName: String? = null
+                    var ext: String? = null
+
+                    // 嘗試讀取檔名與 MIME
+                    resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                        if (c.moveToFirst()) {
+                            val idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            if (idx >= 0) displayName = c.getString(idx)
+                        }
+                    }
+                    val mime = resolver.getType(uri)
+                    if (!mime.isNullOrEmpty()) {
+                        ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
+                    }
+
+                    if (displayName.isNullOrEmpty()) {
+                        val ts = System.currentTimeMillis()
+                        val suffix = (ext ?: fallbackExt)
+                        displayName = "${defaultNamePrefix}_${ts}.${suffix}"
+                    } else if (!displayName!!.contains('.')) {
+                        // 若沒有副檔名則補上
+                        val suffix = (ext ?: fallbackExt)
+                        displayName = "$displayName.$suffix"
+                    }
+
+                    val targetDir = getAppFilesDirectory(context)
+                    val outFile = File(targetDir, displayName!!)
+                    resolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(outFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    Log.d(TAG, "URI resolved to local file: ${outFile.absolutePath}")
+                    outFile.absolutePath
+                }
+                else -> null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to resolve uri to local file: ${e.message}")
             null
         }
     }
@@ -130,6 +194,85 @@ object VideoUtils {
         } catch (e: Exception) {
             Log.e(TAG, "Error deleting file: ${e.message}")
             false
+        }
+    }
+    
+    /**
+     * 獲取影片時長 (毫秒)
+     */
+    fun getVideoDuration(videoPath: String): Long {
+        return try {
+            val extractor = MediaExtractor()
+            extractor.setDataSource(videoPath)
+            
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME)
+                if (mime?.startsWith("video/") == true) {
+                    val durationUs = format.getLong(MediaFormat.KEY_DURATION)
+                    extractor.release()
+                    return durationUs / 1000 // 轉換為毫秒
+                }
+            }
+            
+            extractor.release()
+            0L
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting video duration: ${e.message}")
+            0L
+        }
+    }
+    
+    /**
+     * 獲取音訊時長 (毫秒)
+     */
+    fun getAudioDuration(audioPath: String): Long {
+        return try {
+            val extractor = MediaExtractor()
+            extractor.setDataSource(audioPath)
+            
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME)
+                if (mime?.startsWith("audio/") == true) {
+                    val durationUs = format.getLong(MediaFormat.KEY_DURATION)
+                    extractor.release()
+                    return durationUs / 1000 // 轉換為毫秒
+                }
+            }
+            
+            extractor.release()
+            0L
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting audio duration: ${e.message}")
+            0L
+        }
+    }
+    
+    /**
+     * 獲取媒體檔案時長 (毫秒) - 自動判斷音訊或影片
+     */
+    fun getMediaDuration(mediaPath: String): Long {
+        return try {
+            val extractor = MediaExtractor()
+            extractor.setDataSource(mediaPath)
+            
+            var longestDuration = 0L
+            
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME)
+                if (mime?.startsWith("video/") == true || mime?.startsWith("audio/") == true) {
+                    val durationUs = format.getLong(MediaFormat.KEY_DURATION)
+                    longestDuration = maxOf(longestDuration, durationUs)
+                }
+            }
+            
+            extractor.release()
+            longestDuration / 1000 // 轉換為毫秒
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting media duration: ${e.message}")
+            0L
         }
     }
 }

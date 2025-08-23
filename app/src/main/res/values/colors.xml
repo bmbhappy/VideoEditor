@@ -35,4 +35,12 @@
     <!-- Selection colors -->
     <color name="selection_yellow">#FFD60A</color>
     <color name="selection_orange">#FF9500</color>
+    
+    <!-- BGM Adjust Interface Colors -->
+    <color name="background_color">@color/gray_100</color>
+    <color name="text_color">@color/white</color>
+    <color name="text_secondary">@color/white</color>
+    <color name="primary_color">@color/teal_500</color>
+    <color name="secondary_color">@color/orange_500</color>
+    <color name="accent_color">@color/accent_purple</color>
 </resources>

@@ -266,6 +266,7 @@ class VideoProcessor(private val context: Context) {
     ) = withContext(Dispatchers.IO) {
         var extractor: MediaExtractor? = null
         var muxer: MediaMuxer? = null
+        var muxerStopped = false
         
         try {
             com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "=== 開始變速處理 ===")
@@ -293,68 +294,91 @@ class VideoProcessor(private val context: Context) {
             com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 5: 檢測到 $trackCount 個軌道")
             
             val trackIndexMap = mutableMapOf<Int, Int>()
+            var videoFormat: MediaFormat? = null
+            var audioFormat: MediaFormat? = null
             
-            // 設定軌道 - 直接複製原始格式
-            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 6: 開始設定軌道映射")
+            // 分析軌道格式
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 6: 分析軌道格式")
             for (i in 0 until trackCount) {
                 val format = extractor.getTrackFormat(i)
                 val mimeType = format.getString(MediaFormat.KEY_MIME)
                 
                 com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "軌道 $i: MIME類型 = $mimeType")
                 
+                if (mimeType?.startsWith("video/") == true) {
+                    videoFormat = format
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "影片軌道格式: $format")
+                } else if (mimeType?.startsWith("audio/") == true) {
+                    audioFormat = format
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "音訊軌道格式: $format")
+                }
+            }
+            
+            // 設定軌道 - 使用原始格式（不改變音訊採樣率；改由 PTS 縮放達成變速）
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 7: 設定軌道映射")
+            for (i in 0 until trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mimeType = format.getString(MediaFormat.KEY_MIME)
+                
                 if (mimeType?.startsWith("video/") == true || mimeType?.startsWith("audio/") == true) {
+                    // 影片與音訊軌道皆使用原始格式；避免容器層參數與實際編碼不一致
                     val outputTrackIndex = muxer.addTrack(format)
                     trackIndexMap[i] = outputTrackIndex
-                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 6.$i: 添加軌道 $i -> 輸出軌道 $outputTrackIndex (MIME: $mimeType)")
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 7.$i: 添加軌道 $i -> 輸出軌道 $outputTrackIndex (MIME=$mimeType)")
+
                     extractor.selectTrack(i)
                 } else {
-                    com.example.videoeditor.utils.LogDisplayManager.addLog("W", "VideoProcessor", "步驟 6.$i: 跳過不支援的軌道 $i (MIME: $mimeType)")
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("W", "VideoProcessor", "步驟 7.$i: 跳過不支援的軌道 $i (MIME: $mimeType)")
                 }
             }
             
             com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "軌道映射表: $trackIndexMap")
             
             // 開始處理
-            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 7: 啟動 MediaMuxer")
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 8: 啟動 MediaMuxer")
             muxer.start()
             
             val buffer = ByteBuffer.allocate(1024 * 1024)
             val bufferInfo = MediaCodec.BufferInfo()
+            // 以各軌道首個時間戳為基準，依 speed 等比縮放 PTS
+            val firstPtsPerTrack = mutableMapOf<Int, Long>()
             
             var sampleCount = 0
             var videoSampleCount = 0
             var audioSampleCount = 0
             
-            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 8: 開始處理樣本")
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 9: 開始處理樣本")
             while (true) {
                 val trackIndex = extractor.getSampleTrackIndex()
                 if (trackIndex < 0) {
-                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 8.$sampleCount: 沒有更多樣本，結束處理")
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 9.$sampleCount: 沒有更多樣本，結束處理")
                     break
                 }
                 
                 val sampleSize = extractor.readSampleData(buffer, 0)
                 if (sampleSize < 0) {
-                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 8.$sampleCount: 樣本大小為負數，結束處理")
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 9.$sampleCount: 樣本大小為負數，結束處理")
                     break
                 }
                 
                 bufferInfo.offset = 0
                 bufferInfo.size = sampleSize
                 
-                // 正確處理變速的時間戳
+                // 保持原始時間戳，讓播放器處理變速
                 val originalTimeUs = extractor.sampleTime
                 val trackFormat = extractor.getTrackFormat(trackIndex)
                 val trackMimeType = trackFormat.getString(MediaFormat.KEY_MIME)
                 
+                // 以該軌道首個 PTS 為 0，依 speed 進行等比縮放
+                val base = firstPtsPerTrack.getOrPut(trackIndex) { originalTimeUs }
+                val deltaUs = if (originalTimeUs >= base) originalTimeUs - base else 0L
+                val scaledUs = (deltaUs / speed).toLong().coerceAtLeast(0L)
+                bufferInfo.presentationTimeUs = scaledUs
+                
                 if (trackMimeType?.startsWith("video/") == true) {
-                    // 影片軌道：按速度調整時間戳
-                    bufferInfo.presentationTimeUs = (originalTimeUs / speed).toLong()
-                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "影片處理: 原始時間=${originalTimeUs}us, 調整後=${bufferInfo.presentationTimeUs}us, 速度=$speed")
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "影片處理: 原始=${originalTimeUs}us, 縮放=${scaledUs}us, 速度=$speed")
                 } else if (trackMimeType?.startsWith("audio/") == true) {
-                    // 音訊軌道：按速度調整時間戳
-                    bufferInfo.presentationTimeUs = (originalTimeUs / speed).toLong()
-                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "音訊處理: 原始時間=${originalTimeUs}us, 調整後=${bufferInfo.presentationTimeUs}us, 速度=$speed")
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "音訊處理: 原始=${originalTimeUs}us, 縮放=${scaledUs}us, 速度=$speed")
                 }
                 
                 bufferInfo.flags = extractor.sampleFlags
@@ -375,19 +399,19 @@ class VideoProcessor(private val context: Context) {
                         }
                         
                         if (sampleCount % 100 == 0) {
-                            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 8.$sampleCount: 已處理 $sampleCount 個樣本 (影片: $videoSampleCount, 音訊: $audioSampleCount)")
+                            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 9.$sampleCount: 已處理 $sampleCount 個樣本 (影片: $videoSampleCount, 音訊: $audioSampleCount)")
                         }
                     } catch (e: IllegalArgumentException) {
-                        com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "步驟 8.$sampleCount: trackIndex is invalid 錯誤!")
+                        com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "步驟 9.$sampleCount: trackIndex is invalid 錯誤!")
                         com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "錯誤詳情: trackIndex=$trackIndex, outputTrackIndex=$outputTrackIndex")
                         com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "軌道映射表: $trackIndexMap")
                         throw e
                     } catch (e: Exception) {
-                        com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "步驟 8.$sampleCount: 寫入樣本時發生錯誤: ${e.message}")
+                        com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "步驟 9.$sampleCount: 寫入樣本時發生錯誤: ${e.message}")
                         throw e
                     }
                 } else {
-                    com.example.videoeditor.utils.LogDisplayManager.addLog("W", "VideoProcessor", "步驟 8.$sampleCount: 找不到軌道 $trackIndex 的輸出映射，跳過樣本")
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("W", "VideoProcessor", "步驟 9.$sampleCount: 找不到軌道 $trackIndex 的輸出映射，跳過樣本")
                 }
                 
                 extractor.advance()
@@ -396,22 +420,21 @@ class VideoProcessor(private val context: Context) {
                 callback.onProgress(progress.coerceIn(0f, 100f))
             }
             
-            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 9: 處理完成統計")
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 10: 處理完成統計")
             com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "總共處理了 $sampleCount 個樣本")
             com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "影片樣本: $videoSampleCount 個")
             com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "音訊樣本: $audioSampleCount 個")
             
-            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 10: 停止 MediaMuxer")
-            muxer.stop()
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 11: 處理完成，準備停止 MediaMuxer")
             
             // 確保檔案存在且可讀
             if (outputFile.exists() && outputFile.length() > 0) {
-                com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 11: 變速處理成功")
+                com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 12: 變速處理成功")
                 com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "輸出檔案: ${outputFile.absolutePath}")
                 com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "檔案大小: ${outputFile.length()} bytes")
                 callback.onSuccess(outputFile.absolutePath)
             } else {
-                com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "步驟 11: 輸出檔案不存在或為空")
+                com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "步驟 12: 輸出檔案不存在或為空")
                 com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "檔案路徑: ${outputFile.absolutePath}")
                 com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "檔案存在: ${outputFile.exists()}")
                 com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "檔案大小: ${outputFile.length()} bytes")
@@ -425,13 +448,32 @@ class VideoProcessor(private val context: Context) {
             e.printStackTrace()
             callback.onError("變速處理失敗: ${e.message}")
         } finally {
-            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 12: 清理資源")
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 13: 清理資源")
             try {
                 extractor?.release()
                 com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "MediaExtractor 已釋放")
-                // 只釋放 muxer，不調用 stop()，因為已經在成功路徑中調用了
-                muxer?.release()
-                com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "MediaMuxer 已釋放")
+                
+                // 停止 MediaMuxer
+                if (muxer != null) {
+                    try {
+                        if (!muxerStopped) {
+                            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "停止 MediaMuxer")
+                            muxer.stop()
+                            muxerStopped = true
+                        }
+                        com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "MediaMuxer 已停止")
+                    } catch (e: Exception) {
+                        com.example.videoeditor.utils.LogDisplayManager.addLog("W", "VideoProcessor", "MediaMuxer 停止失敗: ${e.message}")
+                    }
+                    
+                    // 釋放 MediaMuxer
+                    try {
+                        muxer.release()
+                        com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "MediaMuxer 已釋放")
+                    } catch (e: Exception) {
+                        com.example.videoeditor.utils.LogDisplayManager.addLog("W", "VideoProcessor", "MediaMuxer 釋放失敗: ${e.message}")
+                    }
+                }
             } catch (e: Exception) {
                 com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "釋放資源失敗: ${e.message}")
             }
@@ -515,143 +557,68 @@ class VideoProcessor(private val context: Context) {
         musicUri: Uri,
         callback: ProcessingCallback
     ) = withContext(Dispatchers.IO) {
-        var videoExtractor: MediaExtractor? = null
-        var musicExtractor: MediaExtractor? = null
-        var muxer: MediaMuxer? = null
         try {
-            com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "=== 開始添加背景音樂 ===")
-            videoExtractor = MediaExtractor()
-            videoExtractor.setDataSource(context, inputUri, null)
-            musicExtractor = MediaExtractor()
-            musicExtractor.setDataSource(context, musicUri, null)
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "=== 開始添加背景音樂（新混音器） ===")
+            
+            val inputPath = com.example.videoeditor.utils.VideoUtils.resolveToLocalFilePath(
+                context = context,
+                uri = inputUri,
+                defaultNamePrefix = "video"
+            ) ?: throw IllegalArgumentException("無法獲取輸入影片路徑")
+
+            val musicPath = com.example.videoeditor.utils.VideoUtils.resolveToLocalFilePath(
+                context = context,
+                uri = musicUri,
+                defaultNamePrefix = "music",
+                fallbackExt = "mp3"
+            ) ?: throw IllegalArgumentException("無法獲取音樂檔案路徑")
 
             val outputFile = File(
                 context.getExternalFilesDir(null),
                 "with_music_${System.currentTimeMillis()}.mp4"
             )
+
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "輸入影片路徑: $inputPath")
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "音樂檔案路徑: $musicPath")
             com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "輸出檔案路徑: ${outputFile.absolutePath}")
 
-            muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            // 使用專業的背景音樂混音器
+            val config = BgmMixConfig(
+                mainVolume = 0.85f,          // 原影片音量比例 0.0~1.0
+                bgmVolume = 0.35f,           // BGM 音量比例 0.0~1.0
+                bgmStartOffsetUs = 0L,       // BGM 從 0 開始；可設 >0 延後入場
+                loopBgm = true,              // BGM 不足時自動循環
+                enableDucking = false,       // 是否開啟 Ducking
+                duckingThreshold = 0.08f,    // 主聲道瞬時能量門檻（RMS）
+                duckingAttenuation = 0.5f,   // Ducking 時 BGM 衰減倍率（0.0~1.0）
+                outSampleRate = 48000,
+                outChannelCount = 2,
+                outAacBitrate = 128_000
+            )
 
-            var videoInTrack = -1
-            var audioInTrack = -1
-            var videoOutTrack = -1
-            var audioOutTrack = -1
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "混音配置: $config")
 
-            for (i in 0 until videoExtractor.trackCount) {
-                val f = videoExtractor.getTrackFormat(i)
-                val mime = f.getString(MediaFormat.KEY_MIME)
-                if (mime?.startsWith("video/") == true) {
-                    videoInTrack = i
-                    videoOutTrack = muxer.addTrack(f)
-                    videoExtractor.selectTrack(i)
-                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "選取影片軌道 $i -> 輸出 $videoOutTrack")
-                    break
-                }
-            }
+            SimpleBgmMixer.mixVideoWithBgm(
+                context = context,
+                inputVideoPath = inputPath,
+                inputBgmPath = musicPath,
+                outputPath = outputFile.absolutePath,
+                config = config
+            )
 
-            for (i in 0 until musicExtractor.trackCount) {
-                val f = musicExtractor.getTrackFormat(i)
-                val mime = f.getString(MediaFormat.KEY_MIME)
-                if (mime?.startsWith("audio/") == true) {
-                    audioInTrack = i
-                    audioOutTrack = muxer.addTrack(f)
-                    musicExtractor.selectTrack(i)
-                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "選取音樂軌道 $i -> 輸出 $audioOutTrack")
-                    break
-                }
-            }
-
-            muxer.start()
-
-            val buffer = ByteBuffer.allocate(1024 * 1024)
-            val bufferInfo = MediaCodec.BufferInfo()
-
-            // 複製影片樣本
-            if (videoInTrack >= 0 && videoOutTrack >= 0) {
-                while (true) {
-                    val t = videoExtractor.sampleTrackIndex
-                    if (t < 0) break
-                    val size = videoExtractor.readSampleData(buffer, 0)
-                    if (size < 0) break
-                    bufferInfo.offset = 0
-                    bufferInfo.size = size
-                    bufferInfo.presentationTimeUs = videoExtractor.sampleTime
-                    bufferInfo.flags = videoExtractor.sampleFlags
-                    muxer.writeSampleData(videoOutTrack, buffer, bufferInfo)
-                    videoExtractor.advance()
-                }
-            }
-
-            // 複製音樂樣本並循環播放
-            if (audioInTrack >= 0 && audioOutTrack >= 0) {
-                val videoDuration = getVideoDuration(videoExtractor)
-                val musicDuration = getMusicDuration(musicExtractor)
-                
-                com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "影片時長: ${videoDuration}us, 音樂時長: ${musicDuration}us")
-                
-                var currentTimeUs = 0L
-                var musicCycleCount = 0
-                
-                while (currentTimeUs < videoDuration) {
-                    // 重置音樂到開始位置
-                    musicExtractor.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
-                    musicCycleCount++
-                    
-                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "開始音樂循環 $musicCycleCount, 當前時間: ${currentTimeUs}us")
-                    
-                    while (currentTimeUs < videoDuration) {
-                        val t = musicExtractor.sampleTrackIndex
-                        if (t < 0) break
-                        
-                        val size = musicExtractor.readSampleData(buffer, 0)
-                        if (size < 0) break
-                        
-                        val sampleTime = musicExtractor.sampleTime
-                        if (sampleTime >= musicDuration) {
-                            com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "音樂循環 $musicCycleCount 完成，準備下一個循環")
-                            break
-                        }
-                        
-                        bufferInfo.offset = 0
-                        bufferInfo.size = size
-                        bufferInfo.presentationTimeUs = currentTimeUs + sampleTime
-                        bufferInfo.flags = musicExtractor.sampleFlags
-                        
-                        muxer.writeSampleData(audioOutTrack, buffer, bufferInfo)
-                        musicExtractor.advance()
-                        
-                        // 更新當前時間
-                        currentTimeUs = bufferInfo.presentationTimeUs
-                        
-                        if (currentTimeUs >= videoDuration) {
-                            com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "已達到影片時長，停止音樂處理")
-                            break
-                        }
-                    }
-                }
-                
-                com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "音樂循環播放完成，總循環次數: $musicCycleCount, 總時長: ${currentTimeUs}us")
-            }
-
-            muxer.stop()
-            
             if (outputFile.exists() && outputFile.length() > 0) {
-                com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "添加背景音樂完成，檔案大小: ${outputFile.length()} bytes")
+                com.example.videoeditor.utils.LogDisplayManager.addLog("D", TAG, "背景音樂混音完成，檔案大小: ${outputFile.length()} bytes")
                 callback.onSuccess(outputFile.absolutePath)
             } else {
                 com.example.videoeditor.utils.LogDisplayManager.addLog("E", TAG, "輸出檔案不存在或為空")
                 callback.onError("輸出檔案生成失敗")
             }
         } catch (e: Exception) {
-            com.example.videoeditor.utils.LogDisplayManager.addLog("E", TAG, "添加背景音樂失敗: ${e.message}")
-            callback.onError("添加背景音樂失敗: ${e.message}")
-        } finally {
-            try {
-                videoExtractor?.release()
-                musicExtractor?.release()
-                muxer?.release()
-            } catch (_: Exception) {}
+            com.example.videoeditor.utils.LogDisplayManager.addLog("E", TAG, "=== 背景音樂混音失敗 ===")
+            com.example.videoeditor.utils.LogDisplayManager.addLog("E", TAG, "錯誤類型: ${e.javaClass.simpleName}")
+            com.example.videoeditor.utils.LogDisplayManager.addLog("E", TAG, "錯誤訊息: ${e.message}")
+            e.printStackTrace()
+            callback.onError("背景音樂混音失敗: ${e.message}")
         }
     }
     
