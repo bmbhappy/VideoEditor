@@ -120,6 +120,9 @@ class MainActivity : AppCompatActivity() {
     private fun setupViewPager() {
         binding.viewPager.adapter = VideoEditorPagerAdapter(this)
         binding.viewPager.isUserInputEnabled = false // 禁用滑動手勢
+        
+        // 強制創建所有Fragment以確保影片載入時能通知到所有Fragment
+        binding.viewPager.offscreenPageLimit = 3 // 預載入所有頁面
     }
     
     private fun setupBottomNavigation() {
