@@ -17,6 +17,7 @@ import com.example.videoeditor.R
 import com.example.videoeditor.databinding.FragmentTrimBinding
 import com.example.videoeditor.engine.VideoProcessor
 import com.example.videoeditor.utils.VideoUtils
+import com.example.videoeditor.utils.ExoPlayerMemoryOptimizer
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
@@ -72,7 +73,8 @@ class TrimFragment : Fragment() {
     }
     
     private fun setupPlayer() {
-        player = ExoPlayer.Builder(requireContext()).build().apply {
+        // 使用記憶體優化的 ExoPlayer
+        player = ExoPlayerMemoryOptimizer.createOptimizedExoPlayer(requireContext()).apply {
             binding.playerView.player = this
             
             addListener(object : Player.Listener {
@@ -83,7 +85,6 @@ class TrimFragment : Fragment() {
                             if (videoDuration == 0L) {
                                 updateTrimBar()
                             }
-
                         }
                         Player.STATE_ENDED -> {
                             Log.d(TAG, "播放結束")
@@ -360,7 +361,9 @@ class TrimFragment : Fragment() {
     
     override fun onDestroyView() {
         super.onDestroyView()
-        player?.release()
+        // 使用記憶體優化的資源釋放
+        ExoPlayerMemoryOptimizer.releaseExoPlayer(player)
+        player = null
         _binding = null
     }
 }

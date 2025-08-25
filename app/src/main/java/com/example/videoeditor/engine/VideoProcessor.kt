@@ -17,7 +17,11 @@ class VideoProcessor(private val context: Context) {
     companion object {
         private const val TAG = "VideoProcessor"
         private const val TIMEOUT_US = 10000L
+        private const val LARGE_FILE_THRESHOLD_MB = 100 // 100MB 以上使用大檔案處理器
     }
+    
+    // 大檔案處理器實例
+    private val largeVideoProcessor = LargeVideoProcessor()
     
     interface ProcessingCallback {
         fun onProgress(progress: Float)
@@ -31,13 +35,94 @@ class VideoProcessor(private val context: Context) {
         endTimeMs: Long,
         callback: ProcessingCallback
     ) = withContext(Dispatchers.IO) {
-        var extractor: MediaExtractor? = null
-        var muxer: MediaMuxer? = null
         
         try {
             com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "=== 開始裁剪影片 ===")
             com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "輸入 URI: $inputUri")
             com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "裁剪時間範圍: ${startTimeMs}ms - ${endTimeMs}ms")
+            
+            // 檢查是否為大檔案
+            val inputPath = getFilePathFromUri(inputUri)
+            if (inputPath != null && largeVideoProcessor.isSuitableForLargeFileProcessing(inputPath)) {
+                com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "檢測到大檔案，使用大檔案處理器")
+                processLargeVideoTrim(inputPath, startTimeMs, endTimeMs, callback)
+                return@withContext
+            }
+            
+            // 使用原有的處理方式
+            processNormalVideoTrim(inputUri, startTimeMs, endTimeMs, callback)
+            
+        } catch (e: Exception) {
+            com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "裁剪影片時發生錯誤: ${e.message}")
+            callback.onError("裁剪影片時發生錯誤: ${e.message}")
+        }
+    }
+    
+    /**
+     * 處理大檔案裁剪
+     */
+    private suspend fun processLargeVideoTrim(
+        inputPath: String,
+        startTimeMs: Long,
+        endTimeMs: Long,
+        callback: ProcessingCallback
+    ) = withContext(Dispatchers.IO) {
+        
+        try {
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "=== 使用大檔案處理器裁剪 ===")
+            
+            // 獲取檔案信息
+            val fileInfo = largeVideoProcessor.getFileInfo(inputPath)
+            if (fileInfo != null) {
+                com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "檔案信息: ${fileInfo.sizeMB}MB, ${fileInfo.durationSeconds}秒")
+            }
+            
+            // 創建輸出檔案
+            val outputFile = File(
+                context.getExternalFilesDir(null),
+                "trimmed_large_${System.currentTimeMillis()}.mp4"
+            )
+            
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "輸出檔案: ${outputFile.absolutePath}")
+            
+            // 使用大檔案處理器進行裁剪
+            val success = largeVideoProcessor.trimLargeVideo(
+                inputPath = inputPath,
+                outputPath = outputFile.absolutePath,
+                startTimeMs = startTimeMs,
+                endTimeMs = endTimeMs,
+                progressCallback = { progress ->
+                    callback.onProgress(progress)
+                }
+            )
+            
+            if (success) {
+                com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "大檔案裁剪完成")
+                callback.onSuccess(outputFile.absolutePath)
+            } else {
+                com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "大檔案裁剪失敗")
+                callback.onError("大檔案裁剪失敗")
+            }
+            
+        } catch (e: Exception) {
+            com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "大檔案裁剪時發生錯誤: ${e.message}")
+            callback.onError("大檔案裁剪時發生錯誤: ${e.message}")
+        }
+    }
+    
+    /**
+     * 處理普通檔案裁剪（原有邏輯）
+     */
+    private suspend fun processNormalVideoTrim(
+        inputUri: Uri,
+        startTimeMs: Long,
+        endTimeMs: Long,
+        callback: ProcessingCallback
+    ) = withContext(Dispatchers.IO) {
+        var extractor: MediaExtractor? = null
+        var muxer: MediaMuxer? = null
+        
+        try {
             
             extractor = MediaExtractor()
             com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 1: 創建 MediaExtractor")
@@ -259,7 +344,112 @@ class VideoProcessor(private val context: Context) {
         }
     }
     
+    /**
+     * 從 URI 獲取檔案路徑
+     */
+    private fun getFilePathFromUri(uri: Uri): String? {
+        return try {
+            when (uri.scheme) {
+                "file" -> uri.path
+                "content" -> {
+                    // 對於 content URI，嘗試獲取實際路徑
+                    val cursor = context.contentResolver.query(uri, arrayOf("_data"), null, null, null)
+                    cursor?.use {
+                        if (it.moveToFirst()) {
+                            it.getString(0)
+                        } else null
+                    }
+                }
+                else -> null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "獲取檔案路徑失敗", e)
+            null
+        }
+    }
+    
     suspend fun changeSpeed(
+        inputUri: Uri,
+        speed: Float,
+        callback: ProcessingCallback
+    ) = withContext(Dispatchers.IO) {
+        
+        try {
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "=== 開始變速處理 ===")
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "輸入 URI: $inputUri")
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "變速倍數: $speed")
+            
+            // 檢查是否為大檔案
+            val inputPath = getFilePathFromUri(inputUri)
+            if (inputPath != null && largeVideoProcessor.isSuitableForLargeFileProcessing(inputPath)) {
+                com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "檢測到大檔案，使用大檔案處理器")
+                processLargeVideoSpeed(inputPath, speed, callback)
+                return@withContext
+            }
+            
+            // 使用原有的處理方式
+            processNormalVideoSpeed(inputUri, speed, callback)
+            
+        } catch (e: Exception) {
+            com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "變速處理時發生錯誤: ${e.message}")
+            callback.onError("變速處理時發生錯誤: ${e.message}")
+        }
+    }
+    
+    /**
+     * 處理大檔案變速
+     */
+    private suspend fun processLargeVideoSpeed(
+        inputPath: String,
+        speed: Float,
+        callback: ProcessingCallback
+    ) = withContext(Dispatchers.IO) {
+        
+        try {
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "=== 使用大檔案處理器變速 ===")
+            
+            // 獲取檔案信息
+            val fileInfo = largeVideoProcessor.getFileInfo(inputPath)
+            if (fileInfo != null) {
+                com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "檔案信息: ${fileInfo.sizeMB}MB, ${fileInfo.durationSeconds}秒")
+            }
+            
+            // 創建輸出檔案
+            val outputFile = File(
+                context.getExternalFilesDir(null),
+                "speed_large_${System.currentTimeMillis()}.mp4"
+            )
+            
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "輸出檔案: ${outputFile.absolutePath}")
+            
+            // 使用大檔案處理器進行變速
+            val success = largeVideoProcessor.changeLargeVideoSpeed(
+                inputPath = inputPath,
+                outputPath = outputFile.absolutePath,
+                speedFactor = speed,
+                progressCallback = { progress ->
+                    callback.onProgress(progress)
+                }
+            )
+            
+            if (success) {
+                com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "大檔案變速完成")
+                callback.onSuccess(outputFile.absolutePath)
+            } else {
+                com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "大檔案變速失敗")
+                callback.onError("大檔案變速失敗")
+            }
+            
+        } catch (e: Exception) {
+            com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "大檔案變速處理時發生錯誤: ${e.message}")
+            callback.onError("大檔案變速處理時發生錯誤: ${e.message}")
+        }
+    }
+    
+    /**
+     * 處理普通檔案變速
+     */
+    private suspend fun processNormalVideoSpeed(
         inputUri: Uri,
         speed: Float,
         callback: ProcessingCallback
@@ -269,9 +459,7 @@ class VideoProcessor(private val context: Context) {
         var muxerStopped = false
         
         try {
-            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "=== 開始變速處理 ===")
-            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "輸入 URI: $inputUri")
-            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "變速倍數: $speed")
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "=== 使用普通處理器變速 ===")
             
             extractor = MediaExtractor()
             com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "步驟 1: 創建 MediaExtractor")

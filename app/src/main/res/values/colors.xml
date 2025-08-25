@@ -31,6 +31,8 @@
     <color name="accent_red">#F44336</color>
     <color name="accent_yellow">#FFCC02</color>
     <color name="accent_purple">#AF52DE</color>
+    <color name="red_500">#F44336</color>
+    <color name="red_400">#EF5350</color>
     
     <!-- Selection colors -->
     <color name="selection_yellow">#FFD60A</color>

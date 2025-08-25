@@ -10,11 +10,46 @@ import java.nio.ByteBuffer
  * 支援原影片無損拷貝和背景音樂添加
  */
 object SimpleBgmMixer {
+    
+    // 大檔案處理器實例
+    private val largeBgmMixer = LargeBgmMixer()
 
     /**
      * 將影片和背景音樂合併
      */
     fun mixVideoWithBgm(
+        context: Context,
+        inputVideoPath: String,
+        inputBgmPath: String,
+        outputPath: String,
+        config: BgmMixConfig
+    ) {
+        
+        // 檢查是否為大檔案
+        if (largeBgmMixer.isSuitableForLargeFileProcessing(inputVideoPath)) {
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "SimpleBgmMixer", "檢測到大檔案，使用大檔案處理器")
+            val success = largeBgmMixer.mixVideoWithBgm(
+                context = context,
+                inputVideoPath = inputVideoPath,
+                inputBgmPath = inputBgmPath,
+                outputPath = outputPath,
+                config = config
+            )
+            
+            if (!success) {
+                throw RuntimeException("大檔案背景音樂混音失敗")
+            }
+            return
+        }
+        
+        // 使用原有的處理方式
+        processNormalBgmMix(context, inputVideoPath, inputBgmPath, outputPath, config)
+    }
+    
+    /**
+     * 處理普通檔案的背景音樂混音（原有邏輯）
+     */
+    private fun processNormalBgmMix(
         context: Context,
         inputVideoPath: String,
         inputBgmPath: String,
