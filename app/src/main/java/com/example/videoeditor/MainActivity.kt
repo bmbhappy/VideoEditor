@@ -28,6 +28,7 @@ import com.example.videoeditor.utils.UltraSimpleCrashReporter
 import com.example.videoeditor.utils.GuaranteedCrashReporter
 import com.example.videoeditor.utils.CrashReportAnalyzer
 import com.example.videoeditor.utils.MemoryOptimizer
+import com.example.videoeditor.utils.ExoPlayerMemoryOptimizer
 import com.example.test.TestRunner
 import com.example.test.TestExample
 import androidx.lifecycle.lifecycleScope
@@ -612,32 +613,34 @@ class MainActivity : AppCompatActivity() {
      * 顯示崩潰報告菜單
      */
     private fun showCrashReportMenu() {
-        val options = arrayOf(
-            "查看崩潰報告",
-            "分析崩潰報告",
-            "記憶體監控",
-            "測試崩潰報告功能",
-            "顯示調試信息",
-            "模擬崩潰 (OOM)",
-            "模擬崩潰 (NPE)",
-            "模擬崩潰 (文件讀取錯誤)",
-            "手動保存崩潰報告"
-        )
+                    val options = arrayOf(
+                "查看崩潰報告",
+                "分析崩潰報告",
+                "記憶體監控",
+                "ExoPlayer 記憶體監控",
+                "測試崩潰報告功能",
+                "顯示調試信息",
+                "模擬崩潰 (OOM)",
+                "模擬崩潰 (NPE)",
+                "模擬崩潰 (文件讀取錯誤)",
+                "手動保存崩潰報告"
+            )
         
         android.app.AlertDialog.Builder(this)
             .setTitle("🔧 崩潰報告功能")
             .setItems(options) { _, which ->
-                when (which) {
-                    0 -> openCrashReportActivity()
-                    1 -> showCrashReportAnalysis()
-                    2 -> showMemoryMonitor()
-                    3 -> testCrashReportFunctionality()
-                    4 -> showCrashReportDebugInfo()
-                    5 -> simulateOOMCrash()
-                    6 -> simulateNPECrash()
-                    7 -> simulateFileReadError()
-                    8 -> manuallySaveCrashReport()
-                }
+                                        when (which) {
+                            0 -> openCrashReportActivity()
+                            1 -> showCrashReportAnalysis()
+                            2 -> showMemoryMonitor()
+                            3 -> showExoPlayerMemoryMonitor()
+                            4 -> testCrashReportFunctionality()
+                            5 -> showCrashReportDebugInfo()
+                            6 -> simulateOOMCrash()
+                            7 -> simulateNPECrash()
+                            8 -> simulateFileReadError()
+                            9 -> manuallySaveCrashReport()
+                        }
             }
             .setNegativeButton("取消", null)
             .show()
@@ -730,18 +733,18 @@ $statistics
     /**
      * 顯示記憶體監控
      */
-    private fun showMemoryMonitor() {
+        private fun showMemoryMonitor() {
         try {
             val status = MemoryOptimizer.checkMemoryStatus(this)
             val isLow = MemoryOptimizer.isMemoryLow(this)
-            
+
             val memoryInfo = """
 ${status.getFormattedStatus()}
 
 記憶體狀態: ${if (isLow) "🔴 不足" else "🟢 正常"}
 建議操作: ${if (isLow) "立即清理記憶體" else "記憶體狀態良好"}
             """.trimIndent()
-            
+
             android.app.AlertDialog.Builder(this)
                 .setTitle("💾 記憶體監控")
                 .setMessage(memoryInfo)
@@ -759,9 +762,38 @@ ${status.getFormattedStatus()}
                     copyToClipboard(memoryInfo)
                 }
                 .show()
-                
+
         } catch (e: Exception) {
             Toast.makeText(this, "記憶體監控失敗: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun showExoPlayerMemoryMonitor() {
+        try {
+            val exoPlayerStats = ExoPlayerMemoryOptimizer.getExoPlayerMemoryStats(this)
+
+            android.app.AlertDialog.Builder(this)
+                .setTitle("🎬 ExoPlayer 記憶體監控")
+                .setMessage(exoPlayerStats)
+                .setPositiveButton("清理 ExoPlayer 緩存") { _, _ ->
+                    // 執行 ExoPlayer 相關清理
+                    ExoPlayerMemoryOptimizer.releaseExoPlayer(null) // 清理緩存
+                    MemoryOptimizer.cleanupMemory(this)
+                    Toast.makeText(this, "ExoPlayer 緩存清理完成", Toast.LENGTH_SHORT).show()
+                    // 重新顯示狀態
+                    lifecycleScope.launch {
+                        delay(1000)
+                        showExoPlayerMemoryMonitor()
+                    }
+                }
+                .setNegativeButton("關閉", null)
+                .setNeutralButton("複製信息") { _, _ ->
+                    copyToClipboard(exoPlayerStats)
+                }
+                .show()
+
+        } catch (e: Exception) {
+            Toast.makeText(this, "ExoPlayer 記憶體監控失敗: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
     
