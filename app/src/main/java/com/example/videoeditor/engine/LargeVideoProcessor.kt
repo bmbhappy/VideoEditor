@@ -136,7 +136,7 @@ class LargeVideoProcessor {
             muxer.start()
             Log.d(TAG, "MediaMuxer 已開始")
 
-            val buffer = ByteBuffer.allocate(BUFFER_SIZE)
+            val buffer = ByteBuffer.allocateDirect(BUFFER_SIZE)
             val info = MediaCodec.BufferInfo()
 
             val totalDurationUs = videoFormat.getLong(MediaFormat.KEY_DURATION)
@@ -246,16 +246,43 @@ class LargeVideoProcessor {
 
             Log.d(TAG, "開始裁剪大影片檔案: $inputPath")
             Log.d(TAG, "裁剪時間: ${startTimeMs}ms - ${endTimeMs}ms")
+            
+            // 檢查輸入檔案
+            val inputFile = File(inputPath)
+            if (!inputFile.exists()) {
+                Log.e(TAG, "輸入檔案不存在: $inputPath")
+                updateState(State.ERROR)
+                return@withContext false
+            }
+            
+            Log.d(TAG, "輸入檔案大小: ${inputFile.length() / (1024 * 1024)}MB")
 
             extractor = MediaExtractor()
             extractor.setDataSource(inputPath)
+            
+            Log.d(TAG, "軌道數量: ${extractor.trackCount}")
 
             // 檢查影片總長度
-            val totalDurationUs = extractor.getTrackFormat(0).getLong(MediaFormat.KEY_DURATION)
-            val totalDurationMs = totalDurationUs / 1000
+            var totalDurationMs = 0L
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME)
+                if (mime?.startsWith("video/") == true) {
+                    val durationUs = format.getLong(MediaFormat.KEY_DURATION)
+                    totalDurationMs = durationUs / 1000
+                    Log.d(TAG, "影片軌道 $i 長度: ${totalDurationMs}ms")
+                    break
+                }
+            }
+
+            if (totalDurationMs == 0L) {
+                Log.e(TAG, "無法獲取影片長度")
+                updateState(State.ERROR)
+                return@withContext false
+            }
 
             if (endTimeMs > totalDurationMs) {
-                Log.e(TAG, "結束時間超過影片總長度")
+                Log.e(TAG, "結束時間 ${endTimeMs}ms 超過影片總長度 ${totalDurationMs}ms")
                 updateState(State.ERROR)
                 return@withContext false
             }
@@ -283,6 +310,9 @@ class LargeVideoProcessor {
 
             require(videoTrackIndex >= 0) { "找不到影片軌道" }
 
+            Log.d(TAG, "影片軌道索引: $videoTrackIndex")
+            Log.d(TAG, "音訊軌道索引: $audioTrackIndex")
+
             muxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
 
             val outVideoTrack = muxer.addTrack(videoFormat!!)
@@ -293,7 +323,19 @@ class LargeVideoProcessor {
 
             muxer.start()
 
-            val buffer = ByteBuffer.allocate(BUFFER_SIZE)
+            // 選擇軌道進行讀取
+            extractor.selectTrack(videoTrackIndex)
+            if (audioTrackIndex >= 0) {
+                extractor.selectTrack(audioTrackIndex)
+            }
+
+            Log.d(TAG, "已選擇軌道進行讀取")
+
+            // 根據軌道格式動態分配緩衝區大小
+            val maxInputSize = videoFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE, BUFFER_SIZE)
+            Log.d(TAG, "影片軌道最大輸入大小: $maxInputSize bytes")
+            
+            val buffer = ByteBuffer.allocateDirect(maxInputSize)
             val info = MediaCodec.BufferInfo()
 
             // 定位到開始時間
@@ -316,7 +358,16 @@ class LargeVideoProcessor {
                 buffer.clear()
                 info.offset = 0
 
+                // 確保緩衝區準備好
+                buffer.position(0)
+                buffer.limit(buffer.capacity())
+
+                // 詳細日誌記錄，診斷 readSampleData 問題
+                Log.d(TAG, "準備讀取剪裁樣本 - 緩衝區容量: ${buffer.capacity()}, 位置: ${buffer.position()}, 限制: ${buffer.limit()}")
+                Log.d(TAG, "當前軌道索引: ${extractor.sampleTrackIndex}, 樣本時間: ${extractor.sampleTime}, 樣本標誌: ${extractor.sampleFlags}")
+
                 val size = extractor.readSampleData(buffer, 0)
+                Log.d(TAG, "剪裁 readSampleData 結果: $size bytes")
                 if (size < 0) {
                     Log.d(TAG, "已讀取完所有樣本")
                     break
@@ -354,10 +405,19 @@ class LargeVideoProcessor {
             }
 
             Log.d(TAG, "裁剪完成，總共處理 $processedSamples 個樣本")
-            progressCallback?.invoke(100f)
-            updateState(State.COMPLETED)
-
-            true
+            
+            // 檢查輸出檔案
+            val outputFile = File(outputPath)
+            if (outputFile.exists() && outputFile.length() > 0) {
+                Log.d(TAG, "輸出檔案大小: ${outputFile.length() / (1024 * 1024)}MB")
+                progressCallback?.invoke(100f)
+                updateState(State.COMPLETED)
+                true
+            } else {
+                Log.e(TAG, "輸出檔案不存在或為空: $outputPath")
+                updateState(State.ERROR)
+                false
+            }
 
         } catch (e: Exception) {
             Log.e(TAG, "裁剪大影片檔案時發生錯誤", e)
@@ -424,24 +484,56 @@ class LargeVideoProcessor {
             }
 
             require(videoTrackIndex >= 0) { "找不到影片軌道" }
+            require(videoFormat != null) { "影片格式為空" }
+
+            Log.d(TAG, "影片軌道索引: $videoTrackIndex")
+            Log.d(TAG, "音訊軌道索引: $audioTrackIndex")
 
             muxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
 
-            val outVideoTrack = muxer.addTrack(videoFormat!!)
+            val outVideoTrack = muxer.addTrack(videoFormat)
             var outAudioTrack = -1
-            if (audioTrackIndex >= 0) {
-                outAudioTrack = muxer.addTrack(audioFormat!!)
+            if (audioTrackIndex >= 0 && audioFormat != null) {
+                outAudioTrack = muxer.addTrack(audioFormat)
+                Log.d(TAG, "音訊軌道已添加到muxer，格式: ${audioFormat.getString(MediaFormat.KEY_MIME)}")
+                Log.d(TAG, "音訊採樣率: ${audioFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)}Hz")
+                Log.d(TAG, "音訊聲道數: ${audioFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)}")
+            } else {
+                Log.d(TAG, "沒有音訊軌道或音訊格式為空")
+            }
+
+            // 在 muxer.start() 之前選擇軌道
+            extractor.selectTrack(videoTrackIndex)
+            Log.d(TAG, "已選擇影片軌道進行讀取")
+            
+            // 驗證軌道選擇是否成功
+            if (extractor.sampleTrackIndex != videoTrackIndex) {
+                Log.e(TAG, "軌道選擇失敗 - 期望: $videoTrackIndex, 實際: ${extractor.sampleTrackIndex}")
+                throw IllegalStateException("軌道選擇失敗")
             }
 
             muxer.start()
 
-            val buffer = ByteBuffer.allocate(BUFFER_SIZE)
+            // 分別處理影片和音訊軌道
+            Log.d(TAG, "開始分別處理影片和音訊軌道")
+
+            // 根據軌道格式動態分配緩衝區大小
+            val maxInputSize = videoFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE, BUFFER_SIZE)
+            Log.d(TAG, "影片軌道最大輸入大小: $maxInputSize bytes")
+            
+            val buffer = ByteBuffer.allocateDirect(maxInputSize)
             val info = MediaCodec.BufferInfo()
+            
+            // 音訊處理統計變量
+            var audioSamplesProcessed = 0L
 
             val totalDurationUs = videoFormat.getLong(MediaFormat.KEY_DURATION)
             var processedSamples = 0L
             var lastProgressTime = 0L
 
+            // 先處理影片軌道
+            Log.d(TAG, "開始處理影片軌道")
+            
             while (true) {
                 if (isCancelled.get()) {
                     Log.w(TAG, "速度變更被取消")
@@ -456,9 +548,19 @@ class LargeVideoProcessor {
                 buffer.clear()
                 info.offset = 0
 
+                // 確保緩衝區準備好
+                buffer.position(0)
+                buffer.limit(buffer.capacity())
+
+                // 詳細日誌記錄，診斷 readSampleData 問題
+                Log.d(TAG, "準備讀取樣本 - 緩衝區容量: ${buffer.capacity()}, 位置: ${buffer.position()}, 限制: ${buffer.limit()}")
+                Log.d(TAG, "當前軌道索引: ${extractor.sampleTrackIndex}, 樣本時間: ${extractor.sampleTime}, 樣本標誌: ${extractor.sampleFlags}")
+
                 val size = extractor.readSampleData(buffer, 0)
+                Log.d(TAG, "readSampleData 結果: $size bytes")
+                
                 if (size < 0) {
-                    Log.d(TAG, "已讀取完所有樣本")
+                    Log.d(TAG, "影片軌道讀取完成")
                     break
                 }
 
@@ -467,35 +569,117 @@ class LargeVideoProcessor {
                 info.presentationTimeUs = (extractor.sampleTime / speedFactor).toLong()
                 info.flags = extractor.sampleFlags
 
-                val trackIndex = extractor.sampleTrackIndex
+                muxer.writeSampleData(outVideoTrack, buffer, info)
+                processedSamples++
 
-                when (trackIndex) {
-                    videoTrackIndex -> {
-                        muxer.writeSampleData(outVideoTrack, buffer, info)
-                        processedSamples++
-
-                        val currentTime = info.presentationTimeUs
-                        if (currentTime - lastProgressTime > 5_000_000) {
-                            val progress = (currentTime.toFloat() / (totalDurationUs / speedFactor)) * 100
-                            progressCallback?.invoke(progress.coerceIn(0f, 100f))
-                            lastProgressTime = currentTime
-                        }
-                    }
-                    audioTrackIndex -> {
-                        if (outAudioTrack >= 0) {
-                            muxer.writeSampleData(outAudioTrack, buffer, info)
-                        }
-                    }
+                val currentTime = info.presentationTimeUs
+                if (currentTime - lastProgressTime > 5_000_000) {
+                    val progress = (currentTime.toFloat() / (totalDurationUs / speedFactor)) * 50 // 影片處理佔 50%
+                    progressCallback?.invoke(progress.coerceIn(0f, 50f))
+                    lastProgressTime = currentTime
                 }
 
-                extractor.advance()
+                // 檢查 advance() 的返回值
+                if (!extractor.advance()) {
+                    Log.d(TAG, "影片軌道已到達結尾")
+                    break
+                }
             }
 
-            Log.d(TAG, "速度變更完成，總共處理 $processedSamples 個樣本")
-            progressCallback?.invoke(100f)
-            updateState(State.COMPLETED)
+            // 如果有音訊軌道，再處理音訊軌道
+            if (audioTrackIndex >= 0 && outAudioTrack >= 0) {
+                Log.d(TAG, "開始處理音訊軌道")
+                
+                // 重新初始化 extractor 來處理音訊軌道
+                extractor.release()
+                extractor = MediaExtractor()
+                extractor.setDataSource(inputPath)
+                extractor.selectTrack(audioTrackIndex)
+                
+                // 音訊軌道時間戳單調性檢查
+                var lastAdjustedAudioPtsUs: Long = 0
+                
+                while (true) {
+                    if (isCancelled.get()) {
+                        Log.w(TAG, "速度變更被取消")
+                        updateState(State.CANCELLED)
+                        return@withContext false
+                    }
 
-            true
+                    while (isPaused.get()) {
+                        Thread.sleep(200)
+                    }
+
+                    buffer.clear()
+                    info.offset = 0
+
+                    // 確保緩衝區準備好
+                    buffer.position(0)
+                    buffer.limit(buffer.capacity())
+
+                    // 詳細日誌記錄，診斷 readSampleData 問題
+                    Log.d(TAG, "準備讀取音訊樣本 - 緩衝區容量: ${buffer.capacity()}, 位置: ${buffer.position()}, 限制: ${buffer.limit()}")
+                    Log.d(TAG, "當前音訊軌道索引: ${extractor.sampleTrackIndex}, 樣本時間: ${extractor.sampleTime}, 樣本標誌: ${extractor.sampleFlags}")
+
+                    val size = extractor.readSampleData(buffer, 0)
+                    Log.d(TAG, "音訊 readSampleData 結果: $size bytes")
+                    
+                    if (size < 0) {
+                        Log.d(TAG, "音訊軌道讀取完成")
+                        break
+                    }
+
+                    info.size = size
+                    
+                    // 調整 PTS 來改變速度（策略1：直接傳遞壓縮音訊，只調整時間戳）
+                    val originalPtsUs = extractor.sampleTime
+                    val adjustedPtsUs = (originalPtsUs / speedFactor).toLong()
+                    
+                    // 確保時間戳單調性（MediaMuxer 要求時間戳單調遞增）
+                    val finalPtsUs = if (adjustedPtsUs < lastAdjustedAudioPtsUs && lastAdjustedAudioPtsUs != 0L) {
+                        lastAdjustedAudioPtsUs + 1 // 確保至少比前一個時間戳大1微秒
+                    } else {
+                        adjustedPtsUs
+                    }
+                    
+                    info.presentationTimeUs = finalPtsUs
+                    info.flags = extractor.sampleFlags
+                    lastAdjustedAudioPtsUs = finalPtsUs
+                    
+                    Log.d(TAG, "音訊樣本 $audioSamplesProcessed - 原始PTS: ${originalPtsUs}us, 調整後PTS: ${adjustedPtsUs}us, 最終PTS: ${finalPtsUs}us")
+                    
+                    muxer.writeSampleData(outAudioTrack, buffer, info)
+                    audioSamplesProcessed++
+
+                    val currentTime = info.presentationTimeUs
+                    if (currentTime - lastProgressTime > 5_000_000) {
+                        val progress = 50f + (currentTime.toFloat() / (totalDurationUs / speedFactor)) * 50 // 音訊處理佔 50%
+                        progressCallback?.invoke(progress.coerceIn(50f, 100f))
+                        lastProgressTime = currentTime
+                    }
+
+                    // 檢查 advance() 的返回值
+                    if (!extractor.advance()) {
+                        Log.d(TAG, "音訊軌道已到達結尾")
+                        break
+                    }
+                }
+            }
+
+            Log.d(TAG, "速度變更完成，總共處理 $processedSamples 個影片樣本，$audioSamplesProcessed 個音訊樣本")
+            
+            // 檢查輸出檔案
+            val outputFile = File(outputPath)
+            if (outputFile.exists() && outputFile.length() > 0) {
+                Log.d(TAG, "輸出檔案大小: ${outputFile.length() / (1024 * 1024)}MB")
+                progressCallback?.invoke(100f)
+                updateState(State.COMPLETED)
+                true
+            } else {
+                Log.e(TAG, "輸出檔案不存在或為空: $outputPath")
+                updateState(State.ERROR)
+                false
+            }
 
         } catch (e: Exception) {
             Log.e(TAG, "變更大影片檔案速度時發生錯誤", e)

@@ -43,10 +43,23 @@ class VideoProcessor(private val context: Context) {
             
             // 檢查是否為大檔案
             val inputPath = getFilePathFromUri(inputUri)
-            if (inputPath != null && largeVideoProcessor.isSuitableForLargeFileProcessing(inputPath)) {
-                com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "檢測到大檔案，使用大檔案處理器")
-                processLargeVideoTrim(inputPath, startTimeMs, endTimeMs, callback)
-                return@withContext
+            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "解析的檔案路徑: $inputPath")
+            
+            if (inputPath != null) {
+                val file = File(inputPath)
+                val fileSizeMB = file.length() / (1024 * 1024)
+                com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "檔案大小: ${fileSizeMB}MB")
+                com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "檔案存在: ${file.exists()}")
+                
+                if (largeVideoProcessor.isSuitableForLargeFileProcessing(inputPath)) {
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "檢測到大檔案，使用大檔案處理器")
+                    processLargeVideoTrim(inputPath, startTimeMs, endTimeMs, callback)
+                    return@withContext
+                } else {
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "檔案大小不足100MB，使用普通處理器")
+                }
+            } else {
+                com.example.videoeditor.utils.LogDisplayManager.addLog("W", "VideoProcessor", "無法獲取檔案路徑，使用普通處理器")
             }
             
             // 使用原有的處理方式
@@ -350,20 +363,35 @@ class VideoProcessor(private val context: Context) {
     private fun getFilePathFromUri(uri: Uri): String? {
         return try {
             when (uri.scheme) {
-                "file" -> uri.path
+                "file" -> {
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "處理 file URI: ${uri.path}")
+                    uri.path
+                }
                 "content" -> {
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "處理 content URI: $uri")
                     // 對於 content URI，嘗試獲取實際路徑
                     val cursor = context.contentResolver.query(uri, arrayOf("_data"), null, null, null)
                     cursor?.use {
                         if (it.moveToFirst()) {
-                            it.getString(0)
-                        } else null
+                            val path = it.getString(0)
+                            com.example.videoeditor.utils.LogDisplayManager.addLog("D", "VideoProcessor", "從 content URI 獲取路徑: $path")
+                            path
+                        } else {
+                            com.example.videoeditor.utils.LogDisplayManager.addLog("W", "VideoProcessor", "content URI 查詢無結果")
+                            null
+                        }
+                    } ?: run {
+                        com.example.videoeditor.utils.LogDisplayManager.addLog("W", "VideoProcessor", "content URI 查詢失敗")
+                        null
                     }
                 }
-                else -> null
+                else -> {
+                    com.example.videoeditor.utils.LogDisplayManager.addLog("W", "VideoProcessor", "不支援的 URI scheme: ${uri.scheme}")
+                    null
+                }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "獲取檔案路徑失敗", e)
+            com.example.videoeditor.utils.LogDisplayManager.addLog("E", "VideoProcessor", "獲取檔案路徑失敗: ${e.message}")
             null
         }
     }

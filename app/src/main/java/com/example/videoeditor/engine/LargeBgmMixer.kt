@@ -263,11 +263,45 @@ class LargeBgmMixer {
                         if (inEncIndex >= 0) {
                             val encInBuf = encoder.getInputBuffer(inEncIndex)!!
                             encInBuf.clear()
-                            encInBuf.put(decodedBuf)
-                            encoder.queueInputBuffer(
-                                inEncIndex, 0, bufferInfo.size, 
-                                bufferInfo.presentationTimeUs, bufferInfo.flags
-                            )
+                            
+                            // 檢查緩衝區大小，避免溢出
+                            val remaining = encInBuf.remaining()
+                            val dataSize = bufferInfo.size
+                            
+                            if (remaining >= dataSize) {
+                                // 直接複製
+                                encInBuf.put(decodedBuf)
+                                encoder.queueInputBuffer(
+                                    inEncIndex, 0, dataSize, 
+                                    bufferInfo.presentationTimeUs, bufferInfo.flags
+                                )
+                            } else {
+                                // 分塊複製
+                                val tempBuffer = ByteArray(remaining)
+                                decodedBuf.get(tempBuffer)
+                                encInBuf.put(tempBuffer)
+                                encoder.queueInputBuffer(
+                                    inEncIndex, 0, remaining, 
+                                    bufferInfo.presentationTimeUs, bufferInfo.flags
+                                )
+                                
+                                // 處理剩餘數據
+                                if (dataSize > remaining) {
+                                    val remainingData = ByteArray(dataSize - remaining)
+                                    decodedBuf.get(remainingData)
+                                    
+                                    val nextInEncIndex = encoder.dequeueInputBuffer(10_000)
+                                    if (nextInEncIndex >= 0) {
+                                        val nextEncInBuf = encoder.getInputBuffer(nextInEncIndex)!!
+                                        nextEncInBuf.clear()
+                                        nextEncInBuf.put(remainingData)
+                                        encoder.queueInputBuffer(
+                                            nextInEncIndex, 0, remainingData.size, 
+                                            bufferInfo.presentationTimeUs, bufferInfo.flags
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                     
@@ -383,12 +417,14 @@ class LargeBgmMixer {
             
             require(videoTrackIndex >= 0) { "找不到影片軌道" }
             require(bgmTrackIndex >= 0) { "找不到 BGM 軌道" }
+            require(videoFormat != null) { "影片格式為空" }
+            require(bgmFormat != null) { "BGM格式為空" }
             
             Log.d(TAG, "找到影片軌道: $videoTrackIndex, BGM軌道: $bgmTrackIndex")
             
             // 添加軌道到 muxer
-            val outVideoTrack = muxer.addTrack(videoFormat!!)
-            val outBgmTrack = muxer.addTrack(bgmFormat!!)
+            val outVideoTrack = muxer.addTrack(videoFormat)
+            val outBgmTrack = muxer.addTrack(bgmFormat)
             
             // 選擇軌道
             videoExtractor.selectTrack(videoTrackIndex)
