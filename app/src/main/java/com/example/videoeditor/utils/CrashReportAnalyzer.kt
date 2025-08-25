@@ -18,7 +18,7 @@ object CrashReportAnalyzer {
      * 分析所有崩潰報告
      */
     fun analyzeAllCrashReports(context: Context): String {
-        val reports = GuaranteedCrashReporter.getAllCrashReports(context)
+        val reports = UltraGuaranteedCrashReporter.getAllCrashReports(context)
         if (reports.isEmpty()) {
             return "沒有找到崩潰報告"
         }
@@ -217,7 +217,7 @@ object CrashReportAnalyzer {
      * 獲取崩潰統計信息
      */
     fun getCrashStatistics(context: Context): String {
-        val reports = GuaranteedCrashReporter.getAllCrashReports(context)
+        val reports = UltraGuaranteedCrashReporter.getAllCrashReports(context)
         if (reports.isEmpty()) {
             return "沒有崩潰報告"
         }

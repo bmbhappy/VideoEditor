@@ -15,7 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.videoeditor.databinding.ActivityCrashReportBinding
-import com.example.videoeditor.utils.GuaranteedCrashReporter
+import com.example.videoeditor.utils.UltraGuaranteedCrashReporter
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -84,8 +84,8 @@ class CrashReportActivity : AppCompatActivity() {
         try {
             crashReports.clear()
             
-            // 使用保證成功的崩潰報告器獲取所有報告
-            val reportFiles = GuaranteedCrashReporter.getAllCrashReports(this)
+            // 使用超強保證崩潰報告器獲取所有報告
+            val reportFiles = UltraGuaranteedCrashReporter.getAllCrashReports(this)
             
             for (file in reportFiles) {
                 try {
@@ -123,7 +123,7 @@ class CrashReportActivity : AppCompatActivity() {
                 adapter.notifyDataSetChanged()
             }
             
-            Log.d(TAG, "載入了 ${crashReports.size} 個保證成功的崩潰報告")
+            Log.d(TAG, "載入了 ${crashReports.size} 個超強保證崩潰報告")
             
         } catch (e: Exception) {
             Log.e(TAG, "載入崩潰報告失敗", e)
@@ -222,12 +222,12 @@ class CrashReportActivity : AppCompatActivity() {
             .setMessage("確定要清空所有崩潰報告嗎？此操作無法撤銷。")
             .setPositiveButton("清空") { _, _ ->
                 try {
-                    GuaranteedCrashReporter.clearAllCrashReports(this)
+                    UltraGuaranteedCrashReporter.clearAllCrashReports(this)
                     crashReports.clear()
                     adapter.notifyDataSetChanged()
                     binding.emptyView.visibility = View.VISIBLE
                     binding.recyclerView.visibility = View.GONE
-                    Toast.makeText(this, "已清空所有保證成功的崩潰報告", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "已清空所有超強保證崩潰報告", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Log.e(TAG, "清空崩潰報告失敗", e)
                     Toast.makeText(this, "清空失敗: ${e.message}", Toast.LENGTH_SHORT).show()

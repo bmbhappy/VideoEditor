@@ -25,7 +25,7 @@ import com.example.videoeditor.utils.VideoUtils
 import com.example.videoeditor.utils.CrashReportManager
 import com.example.videoeditor.utils.SimpleCrashReporter
 import com.example.videoeditor.utils.UltraSimpleCrashReporter
-import com.example.videoeditor.utils.GuaranteedCrashReporter
+import com.example.videoeditor.utils.UltraGuaranteedCrashReporter
 import com.example.videoeditor.utils.CrashReportAnalyzer
 import com.example.videoeditor.utils.MemoryOptimizer
 import com.example.videoeditor.utils.ExoPlayerMemoryOptimizer
@@ -435,26 +435,26 @@ class MainActivity : AppCompatActivity() {
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
                 // 1. 立即記錄到logcat（最可靠的方法）
-                Log.e("GUARANTEED_CRASH_HANDLER", "=== 保證成功的應用程式崩潰開始 ===")
+                Log.e("ULTRA_CRASH_HANDLER", "=== 超強保證應用程式崩潰開始 ===")
                 Log.e("GUARANTEED_CRASH_HANDLER", "時間: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}")
                 Log.e("GUARANTEED_CRASH_HANDLER", "異常類型: ${throwable.javaClass.simpleName}")
                 Log.e("GUARANTEED_CRASH_HANDLER", "異常消息: ${throwable.message}")
                 Log.e("GUARANTEED_CRASH_HANDLER", "堆疊追蹤:")
                 throwable.printStackTrace()
-                Log.e("GUARANTEED_CRASH_HANDLER", "=== 保證成功的應用程式崩潰結束 ===")
+                Log.e("ULTRA_CRASH_HANDLER", "=== 超強保證應用程式崩潰結束 ===")
                 
                 // 2. 立即寫入系統錯誤流（第二可靠的方法）
-                System.err.println("=== GUARANTEED_CRASH_HANDLER_START ===")
+                System.err.println("=== ULTRA_CRASH_HANDLER_START ===")
                 System.err.println("時間: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}")
                 System.err.println("異常類型: ${throwable.javaClass.simpleName}")
                 System.err.println("異常消息: ${throwable.message}")
                 System.err.println("堆疊追蹤:")
                 throwable.printStackTrace(System.err)
-                System.err.println("=== GUARANTEED_CRASH_HANDLER_END ===")
+                System.err.println("=== ULTRA_CRASH_HANDLER_END ===")
                 System.err.flush()
                 
-                // 3. 使用保證成功的崩潰報告器
-                GuaranteedCrashReporter.saveCrashReport(this@MainActivity, throwable)
+                // 3. 使用超強保證崩潰報告器
+                UltraGuaranteedCrashReporter.saveCrashReport(this@MainActivity, throwable)
                 
                 // 4. 強制刷新所有輸出流
                 System.out.flush()
@@ -662,14 +662,14 @@ class MainActivity : AppCompatActivity() {
             // 創建一個測試異常
             val testException = RuntimeException("這是一個保證成功的測試崩潰報告")
             
-            // 使用保證成功的崩潰報告器
-            GuaranteedCrashReporter.saveCrashReport(this, testException)
+            // 使用超強保證崩潰報告器
+            UltraGuaranteedCrashReporter.saveCrashReport(this, testException)
             
-            Toast.makeText(this, "✅ 保證成功的測試崩潰報告已保存", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "✅ 超強保證測試崩潰報告已保存", Toast.LENGTH_SHORT).show()
             
             // 顯示報告數量
-            val reports = GuaranteedCrashReporter.getAllCrashReports(this)
-            Toast.makeText(this, "當前共有 ${reports.size} 個保證成功的崩潰報告", Toast.LENGTH_SHORT).show()
+            val reports = UltraGuaranteedCrashReporter.getAllCrashReports(this)
+            Toast.makeText(this, "當前共有 ${reports.size} 個超強保證崩潰報告", Toast.LENGTH_SHORT).show()
             
             // 顯示調試信息
             showCrashReportDebugInfo()
@@ -684,12 +684,12 @@ class MainActivity : AppCompatActivity() {
      */
     private fun checkForUnhandledCrashes() {
         try {
-            if (GuaranteedCrashReporter.hasCrashReports(this)) {
-                val reports = GuaranteedCrashReporter.getAllCrashReports(this)
-                Log.i(TAG, "發現 ${reports.size} 個保證成功的崩潰報告")
+            if (UltraGuaranteedCrashReporter.hasCrashReports(this)) {
+                val reports = UltraGuaranteedCrashReporter.getAllCrashReports(this)
+                Log.i(TAG, "發現 ${reports.size} 個超強保證崩潰報告")
                 
                 // 顯示通知
-                Toast.makeText(this, "發現 ${reports.size} 個保證成功的崩潰報告", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "發現 ${reports.size} 個超強保證崩潰報告", Toast.LENGTH_LONG).show()
                 
                 // 自動顯示崩潰報告
                 lifecycleScope.launch {
@@ -816,11 +816,11 @@ ${status.getFormattedStatus()}
      */
     private fun showCrashReportDebugInfo() {
         try {
-            val reports = GuaranteedCrashReporter.getAllCrashReports(this)
-            val hasReports = GuaranteedCrashReporter.hasCrashReports(this)
+            val reports = UltraGuaranteedCrashReporter.getAllCrashReports(this)
+            val hasReports = UltraGuaranteedCrashReporter.hasCrashReports(this)
             
             val debugInfo = """
-                保證成功的崩潰報告調試信息:
+                超強保證崩潰報告調試信息:
                 
                 是否有崩潰報告: $hasReports
                 崩潰報告數量: ${reports.size}
@@ -830,19 +830,21 @@ ${status.getFormattedStatus()}
                 
                 全局異常處理器狀態: 已設置
                 啟動檢查狀態: 已啟用
-                保證成功的崩潰報告器: 已啟用
+                超強保證崩潰報告器: 已啟用
                 
                 檢查位置:
                 - filesDir: ${filesDir.absolutePath}
-                - filesDir/guaranteed_crash_reports: ${File(filesDir, "guaranteed_crash_reports").absolutePath}
-                - getExternalFilesDir: ${getExternalFilesDir("guaranteed_crash_reports")?.absolutePath ?: "null"}
-                - applicationInfo.dataDir: ${File(applicationInfo.dataDir, "guaranteed_crash_reports").absolutePath}
-                - emergency_guaranteed_reports: ${File(filesDir, "emergency_guaranteed_reports").absolutePath}
-                - last_resort_reports: ${File(filesDir, "last_resort_reports").absolutePath}
+                - filesDir/ultra_guaranteed_crash_reports: ${File(filesDir, "ultra_guaranteed_crash_reports").absolutePath}
+                - getExternalFilesDir: ${getExternalFilesDir("ultra_guaranteed_crash_reports")?.absolutePath ?: "null"}
+                - applicationInfo.dataDir: ${File(applicationInfo.dataDir, "ultra_guaranteed_crash_reports").absolutePath}
+                - emergency_ultra_reports: ${File(filesDir, "emergency_ultra_reports").absolutePath}
+                - last_resort_ultra_reports: ${File(filesDir, "last_resort_ultra_reports").absolutePath}
+                - final_ultra_reports: ${File(filesDir, "final_ultra_reports").absolutePath}
+                - ultra_crash_reports: ${File(getExternalFilesDir(null), "ultra_crash_reports").absolutePath}
             """.trimIndent()
             
             android.app.AlertDialog.Builder(this)
-                .setTitle("🔍 保證成功的崩潰報告調試信息")
+                .setTitle("🔍 超強保證崩潰報告調試信息")
                 .setMessage(debugInfo)
                 .setPositiveButton("確定", null)
                 .show()
